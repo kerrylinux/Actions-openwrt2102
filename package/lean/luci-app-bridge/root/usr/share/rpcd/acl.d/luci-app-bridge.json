@@ -1,0 +1,18 @@
+{
+	"luci-app-bridge": {
+		"description": "Grant access to LuCI app bridge",
+		"read": {
+			"file": {
+				"/etc/config/bridge": [ "read" ],
+				"/etc/init.d/bridge": [ "exec" ]
+			},
+			"uci": [ "bridge" ]
+		},
+		"write": {
+			"file": {
+				"/etc/config/bridge": [ "write" ]
+			},
+			"uci": [ "bridge" ]
+		}
+	}
+}

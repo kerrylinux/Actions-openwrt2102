@@ -1,0 +1,56 @@
+#!/bin/sh
+
+
+uci set fstab.@global[0].anon_mount='1'
+uci commit fstab
+
+uci set system.@system[0].hostname='VAIOBYN'
+uci set system.@system[0].timezone=CST-8
+uci set system.@system[0].zonename=Asia/Shanghai
+uci commit system
+
+MTU='1472'
+uci set network.wan6.auto='0'
+uci set network.wan.hostname="VAIOBYN"
+uci set network.wan.stp='1'
+#uci set network.wan.igmp_snooping="1"
+uci set network.wan.type='bridge'
+uci set network.wan.mtu=$MTU
+#uci set network.lan.igmp_snooping="1"
+uci set network.lan.ipaddr='192.168.1.111'
+uci set network.lan.netmask='255.255.255.0'
+uci set network.lan.mtu=$MTU
+uci commit network
+
+uci set wireless.radio0.country="CN"
+uci set wireless.radio0.hwmode='11a'
+uci set wireless.radio0.htmode='VHT80'
+uci set wireless.radio0.channel='auto'
+uci set wireless.radio0.legacy_rates='0'
+uci set wireless.radio0.mu_beamformer='1'
+uci set wireless.radio0.disabled='1'
+
+uci set wireless.default_radio0.ssid='VAIOBYN'
+uci set wireless.default_radio0.key='sonyvaiotz13w'
+uci set wireless.default_radio0.encryption='psk-mixed'
+uci set wireless.default_radio0.network='lan bridge'
+uci commit wireless
+
+uci set firewall.@defaults[0].flow_offloading='1'
+uci set firewall.@zone[1].input='ACCEPT'
+uci commit firewall
+
+
+sed -i '/^$/d;/iptables -t nat/d' /etc/firewall.user
+echo "iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE" >> /etc/firewall.user
+#echo "iptables -t nat -A PREROUTING -p udp --dport 53 -j REDIRECT --to-ports 53" >> /etc/firewall.user
+#echo "iptables -t nat -A PREROUTING -p tcp --dport 53 -j REDIRECT --to-ports 53" >> /etc/firewall.user
+
+echo "dhcp-option-force=125,00:00:00:00:16:02:06:48:47:57:2d:43:54:03:04:5a:58:48:4e:0b:02:00:55:0a:02:20:00" >> /etc/dnsmasq.conf
+echo "dhcp-option=15" >> /etc/dnsmasq.conf
+echo "dhcp-option=28" >> /etc/dnsmasq.conf
+
+sed -i 's/root::0:0:99999:7:::/root:$1$.t6rFgd7$ig9K8RzzDimBeDAWNmnEG1:18046:0:99999:7:::/g' /etc/shadow
+
+
+exit 0

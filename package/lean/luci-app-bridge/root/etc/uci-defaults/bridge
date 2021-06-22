@@ -1,0 +1,39 @@
+#!/bin/sh
+
+uci -q batch <<-EOF >/dev/null
+	delete ucitrack.@bridge[-1]
+	add ucitrack bridge
+	set ucitrack.@bridge[-1].init=bridge
+	commit ucitrack
+EOF
+
+sed -i '/STOP=90/a\echo 1000000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq' /etc/init.d/boot
+sed -i '/exit 0/i\echo 1000000 > /sys/devices/system/cpu/cpufreq/policy0/scaling_min_freq' /etc/rc.local
+
+cat > /etc/modules.d/wireless_enable <<EOF
+brcmfmac
+brcmutil
+cfg80211
+btsdio
+realtek
+ip_set
+nf_conntrack_netlink
+macvlan
+bluetooth
+cryptomgr
+gre
+ip_gre
+sch_cake
+nfnetlink
+xt_nat
+pwm-meson
+iptable_nat
+ipt_MASQUERADE
+xt_REDIRECT
+EOF
+
+chmod 644 /etc/modules.d/wireless_enable
+chmod 755 /etc/init.d/bridge
+
+rm -f /tmp/luci-indexcache
+exit 0

@@ -1,0 +1,47 @@
+
+config global
+	option netflix_server 'nil'
+	option netflix_proxy '0'
+	option run_mode 'router'
+	option dports '1'
+	option pdnsd_enable '0'
+	option tunnel_address '0.0.0.0'
+	option monitor_enable '1'
+	option enable_switch '0'
+	option gfwlist_url 'https://cdn.jsdelivr.net/gh/gfwlist/gfwlist/gfwlist.txt'
+	option chnroute_url 'https://ispip.clang.cn/all_cn.txt'
+	option nfip_url 'https://cdn.jsdelivr.net/gh/QiuSimons/Netflix_IP/getflix.txt'
+	option adblock_url 'https://anti-ad.net/anti-ad-for-dnsmasq.conf'
+  	option global_server 'nil'
+
+config access_control
+	option lan_ac_mode '0'
+	option router_proxy '1'
+	list wan_fw_ips '149.154.160.0/20'
+	list wan_fw_ips '67.198.55.0/24'
+	list wan_fw_ips '91.108.4.0/22'
+	list wan_fw_ips '91.108.56.0/22'
+	list wan_fw_ips '109.239.140.0/24'
+	list wan_fw_ips '1.1.1.1'
+	list wan_fw_ips '1.0.0.1'
+	list wan_fw_ips '8.8.8.8'
+	list wan_fw_ips '8.8.4.4'
+	list wan_fw_ips '9.9.9.9'
+	list wan_fw_ips '149.112.112.112'
+	list wan_fw_ips '208.67.222.222'
+	list wan_fw_ips '208.67.220.220'
+
+config server_subscribe
+	option auto_update_time '2'
+	option auto_update '0'
+	option switch '1'
+	option proxy '0'
+
+config socks5_proxy
+	option socks '0'
+	option local_port '1080'
+
+config server_global
+	option enable_server '0'
+
+

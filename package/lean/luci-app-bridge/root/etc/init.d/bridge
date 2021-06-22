@@ -1,0 +1,324 @@
+#!/bin/sh /etc/rc.common
+
+START=98
+
+run_bridge()
+{
+	config_get enabled $1 enabled
+	config_get gateway $1 gateway
+	config_get ipaddr $1 ipaddr
+	config_get netmask $1 netmask
+	config_get network $1 network
+
+	ipv6=$(uci get network.globals.ula_prefix)
+	if=$(cat /etc/config/network | wc -l)
+
+	if [ "$enabled" = "1" ]; then
+
+	#防止重复配置
+	a=$(uci get network.bridge.ifname | sed 's/ /\n/g' |wc -l)
+	b=$(uci get network.bridge.ipaddr)
+	c=$(uci get network.bridge.netmask)
+	d=$(uci get network.bridge.gateway)
+	e=$(ls /sys/class/net | grep "eth" | wc -l)
+
+	if [ "$a" = "$network" ] || [ "$a" = "$e" ] && [ "$network" = "" ] || [ "$a" = "$network" ]; then
+	f=yes
+	else
+	f=no
+	fi
+
+	if [ "$b" = "$ipaddr" ] && [ "$c" = "$netmask" ] && [ "$d" = "$gateway" ] && [ "$f" = "yes" ]; then
+	break;
+	else
+
+	#模拟输入
+	if [ "$network" = "0" ] || [ "$network" = "" ]; then
+	eth=$(ls /sys/class/net | grep "eth" | tr '\n' ' ' | sed 's/[ ]*$//g')
+	else
+	eth=$(ETH $network | tr '\n' ' ' | sed 's/[ ]*$//g')
+	fi
+
+	#备份配置
+	if [ ! -f "/etc/bridge/firewall" ]; then
+	mkdir /etc/bridge
+	cp /etc/config/network /etc/bridge/network
+	cp /etc/config/firewall /etc/bridge/firewall
+
+	fi
+
+	#清空配置
+	cat /dev/null> /etc/config/network
+	cat /dev/null> /etc/config/firewall
+
+	#写入network网络接口
+	uci set network.loopback=interface
+	uci set network.loopback.ifname=lo
+	uci set network.loopback.proto=static
+	uci set network.loopback.ipaddr=127.0.0.1
+	uci set network.loopback.netmask=255.0.0.0
+	uci set network.globals=globals
+	uci set network.globals.ula_prefix=$ipv6
+	uci set network.bridge=interface
+	uci set network.bridge.ifname="$eth"
+	uci set network.bridge.proto='static'
+	uci set network.bridge.ipaddr=$ipaddr
+	uci set network.bridge.netmask=$netmask
+	uci set network.bridge.gateway=$gateway
+	uci set network.bridge.dns=$gateway
+	uci set network.bridge.force_link='0'
+	uci set network.bridge.mtu='1472'
+	#uci set network.bridge.type='bridge'
+	#uci set network.bridge.stp='1'
+	uci commit network
+
+	#写入firewall防火墙
+cat > /etc/config/firewall <<EOF
+config defaults
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+	option synflood_protect '1'
+	option flow_offloading '1'
+	option flow_offloading_hw '1'
+
+config rule
+	option name 'Allow-IPSec-ESP'
+	option src '*'
+	option dest 'bridge'
+	option proto 'esp'
+	option target 'ACCEPT'
+
+config rule
+	option name 'Allow-ISAKMP'
+	option src '*'
+	option dest 'bridge'
+	option dest_port '500'
+	option proto 'udp'
+	option target 'ACCEPT'
+EOF
+
+	uci add firewall zone
+	uci set firewall.@zone[0].input=ACCEPT
+	uci set firewall.@zone[0].output=ACCEPT
+	uci set firewall.@zone[0].forward=ACCEPT
+	uci set firewall.@zone[0].name=bridge
+	uci set firewall.@zone[0].network=bridge
+	uci commit firewall
+
+uci -q batch <<-EOF >/dev/null
+	delete firewall.passwall
+	set firewall.passwall=include
+	set firewall.passwall.type=script
+	set firewall.passwall.path=/var/etc/passwall.include
+	set firewall.passwall.reload=1
+	delete firewall.passwall_server
+	set firewall.passwall_server=include
+	set firewall.passwall_server.type=script
+	set firewall.passwall_server.path=/var/etc/passwall_server.include
+	set firewall.passwall_server.reload=1
+	commit firewall
+EOF
+
+uci -q batch <<-EOF >/dev/null
+	delete firewall.shadowsocksr
+	set firewall.shadowsocksr=include
+	set firewall.shadowsocksr.type=script
+	set firewall.shadowsocksr.path=/var/etc/shadowsocksr.include
+	set firewall.shadowsocksr.reload=1
+	commit firewall
+EOF
+
+uci -q batch <<-EOF >/dev/null
+	delete firewall.pptpd
+	set firewall.pptpd=include
+	set firewall.pptpd.type=script
+	set firewall.pptpd.path=/var/etc/pptpd.include
+	set firewall.pptpd.reload=1
+	commit firewall
+EOF
+
+uci -q batch <<-EOF >/dev/null
+	delete firewall.ipsecd
+	set firewall.ipsecd=include
+	set firewall.ipsecd.type=script
+	set firewall.ipsecd.path=/etc/ipsec.include
+	set firewall.ipsecd.reload=1
+	commit firewall
+EOF
+
+uci -q batch <<-EOF >/dev/null
+	delete firewall.ike
+	add firewall rule
+	rename firewall.@rule[-1]="ike"
+	set firewall.@rule[-1].name="ike"
+	set firewall.@rule[-1].target="ACCEPT"
+	set firewall.@rule[-1].src="bridge"
+	set firewall.@rule[-1].proto="udp"
+	set firewall.@rule[-1].dest_port="500"
+	delete firewall.ipsec
+	add firewall rule
+	rename firewall.@rule[-1]="ipsec"
+	set firewall.@rule[-1].name="ipsec"
+	set firewall.@rule[-1].target="ACCEPT"
+	set firewall.@rule[-1].src="bridge"
+	set firewall.@rule[-1].proto="udp"
+	set firewall.@rule[-1].dest_port="4500"
+	delete firewall.ah
+	add firewall rule
+	rename firewall.@rule[-1]="ah"
+	set firewall.@rule[-1].name="ah"
+	set firewall.@rule[-1].target="ACCEPT"
+	set firewall.@rule[-1].src="bridge"
+	set firewall.@rule[-1].proto="ah"
+	delete firewall.esp
+	add firewall rule
+	rename firewall.@rule[-1]="esp"
+	set firewall.@rule[-1].name="esp"
+	set firewall.@rule[-1].target="ACCEPT"
+	set firewall.@rule[-1].src="bridge"
+	set firewall.@rule[-1].proto="esp"
+	commit firewall
+EOF
+
+cat >> /etc/config/firewall <<EOF
+config zone
+	option name 'wghome'
+	option input 'ACCEPT'
+	option forward 'ACCEPT'
+	option output 'ACCEPT'
+	option network 'wghome'
+
+config forwarding
+	option dest 'wghome'
+	option src 'bridge'
+EOF
+
+cat >> /etc/config/network <<EOF
+config interface 'wghome'
+	option proto 'wireguard'
+	option private_key 'ODl8/3ZciEimrdGe53ABUC2nOoJl0NLlUpvlb0Bf8E8='
+	option listen_port '51820'
+	list addresses '192.168.9.1/24'
+
+config wireguard_wghome
+	option public_key 'BN6rf095hPC2C/rnWx0s7MJTB4QPWn0/lujzUySEm1Q='
+	option route_allowed_ips '1'
+	list allowed_ips '192.168.9.0/24'
+	option description 'WGHOME'
+	option persistent_keepalive '25'
+EOF
+
+cat > /etc/config/ddns <<EOF
+config ddns 'global'
+	option ddns_dateformat '%F %R'
+	option ddns_loglines '250'
+	option ddns_rundir '/var/run/ddns'
+	option ddns_logdir '/var/log/ddns'
+
+config service 'changeip'
+	option service_name 'changeip.com'
+	option use_ipv6 '0'
+	option enabled '1'
+	option lookup_host 'hello.changeip.com'
+	option domain 'hello.changeip.com'
+	option username 'sqmshcn@gmail.com'
+	option password 'sqmshcn110'
+	option ip_source 'web'
+	option ip_url 'http://members.3322.org/dyndns/getip'
+	option bind_network 'bridge'
+	option use_syslog '2'
+	option check_unit 'minutes'
+	option force_unit 'minutes'
+	option retry_unit 'seconds'
+	option interface 'br-bridge'
+
+config service 'dynu'
+	option use_ipv6 '0'
+	option enabled '1'
+	option lookup_host 'hellomain.dynu.net'
+	option service_name 'dynu.com'
+	option domain 'hellomain.ddnsfree.com'
+	option username 'sqmshcn@gmail.com'
+	option password 'sqmshcn110'
+	option ip_source 'web'
+	option ip_url 'http://members.3322.org/dyndns/getip'
+	option interface 'br-bridge'
+	option bind_network 'bridge'
+	option use_syslog '2'
+	option check_unit 'minutes'
+	option force_unit 'minutes'
+	option retry_unit 'seconds'
+
+config service 'ddnsfree'
+	option service_name 'dynu.com'
+	option use_ipv6 '0'
+	option enabled '1'
+	option domain 'hellomain.ddnsfree.com'
+	option username 'sqmshcn@gmail.com'
+	option password 'sqmshcn110'
+	option ip_source 'web'
+	option ip_url 'http://members.3322.org/dyndns/getip'
+	option interface 'br-bridge'
+	option bind_network 'bridge'
+	option use_syslog '2'
+	option check_unit 'minutes'
+	option force_unit 'minutes'
+	option retry_unit 'seconds'
+	option lookup_host 'hellomain.ddnsfree.com'
+EOF
+
+	uci set dhcp.@dnsmasq[0].server=''
+	uci set dhcp.@dnsmasq[0].noresolv=0
+	uci set dhcp.@dnsmasq[0].resolvfile=''
+	uci set dhcp.@dnsmasq[0].rebind_protection=0
+	uci commit dhcp
+	sed -i s/'br-lan'/'br-bridge'/ /etc/ipsec.include
+	sed -i -e '/option Interface/d' /etc/config/dropbear
+	/etc/init.d/dropbear restart
+	/etc/init.d/odhcpd disable
+	/etc/init.d/odhcpd stop
+	
+	#重启网络DNS服务与防火墙
+	/etc/init.d/network reload 2>/dev/null &
+	/etc/init.d/dnsmasq reload 2>/dev/null &
+	/etc/init.d/firewall reload 2>/dev/null &
+	/etc/init.d/ddns reload 2>/dev/null &
+	fi
+
+	else
+
+	#恢复配置&删除备份
+	if [ -f "/etc/bridge/firewall" ]; then
+	cp /etc/bridge/network /etc/config/network
+	cp /etc/bridge/firewall /etc/config/firewall
+	rm -rf /etc/bridge
+	sed -i s/'br-bridge'/'br-lan'/ /etc/ipsec.include
+	
+	#重启网络DNS服务与防火墙
+	/etc/init.d/network reload 2>/dev/null &
+	/etc/init.d/dnsmasq reload 2>/dev/null &
+	/etc/init.d/firewall reload 2>/dev/null &
+	/etc/init.d/odhcpd enable
+	/etc/init.d/odhcpd reload 2>/dev/null &
+	fi
+
+	fi
+}
+
+ETH()
+{
+	eth=0
+	while [ $eth -le $(expr "$1" - 1) ]
+	do
+	eth=`expr $eth + 1`
+	a=`expr $eth - 1`
+	echo "eth$a"
+	done
+}
+
+start()
+{
+	config_load bridge
+	config_foreach run_bridge bridge
+}

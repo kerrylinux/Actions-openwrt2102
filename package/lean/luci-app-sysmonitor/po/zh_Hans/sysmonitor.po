@@ -1,0 +1,35 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "System Settings"
+msgstr "系统配置"
+
+msgid "WireGuard Enable"
+msgstr "WireGuard 启用"
+
+msgid "Public Address"
+msgstr "公网地址"
+
+msgid "Gateway Address"
+msgstr "网关地址"
+
+msgid "Home IP Address"
+msgstr "网络出口地址"
+
+msgid "VPN IP Address"
+msgstr "VPN 地址"
+
+msgid "IP for Home(192.168.1.1)"
+msgstr "光猫出口地址(如：192.168.1.1)"
+
+msgid "IP for VPN Server(192.168.1.110)"
+msgstr "VPN服务器地址(如：192.168.1.110)"
+
+msgid "BBR Enable"
+msgstr "BBR 启用"
+
+msgid "SmartDNS-AD Enable"
+msgstr "SmartDNS-AD 启用"
+
+msgid "DDNS Monitor"
+msgstr "DDNS 守护"
